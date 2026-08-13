@@ -1,6 +1,6 @@
 services:
   bot:
-    image: ghcr.io/kolx0zhik/dns_static_add_bot_mikrotik:latest
+    build: .
     env_file:
       - .env
     restart: unless-stopped

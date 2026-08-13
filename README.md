@@ -12,6 +12,18 @@
 docker compose up -d
 ```
 
+По умолчанию `docker-compose.yml` использует опубликованный образ:
+
+```text
+ghcr.io/kolx0zhik/dns_static_add_bot_mikrotik:latest
+```
+
+Для локальной сборки используйте dev-compose:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
 ## Переменные окружения
 
 - `BOT_TOKEN` - токен Telegram-бота.
@@ -30,3 +42,19 @@ black --check .
 ruff check .
 pytest
 ```
+
+## CI/CD
+
+При push в ветку `main` workflow `.github/workflows/docker-image.yml` запускает Black,
+Ruff и pytest, затем собирает Docker-образ и публикует его в GitHub Container Registry:
+
+```text
+ghcr.io/kolx0zhik/dns_static_add_bot_mikrotik:latest
+```
+
+Также публикуется immutable-тег вида `sha-<commit>`.
+
+GitHub Container Registry при первой публикации обычно создает package с приватной
+visibility. После первого успешного workflow нужно один раз открыть package settings
+на GitHub и переключить visibility в `Public`; следующие публикации этого же образа
+останутся доступны публично.

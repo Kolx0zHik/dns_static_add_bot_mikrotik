@@ -1,0 +1,38 @@
+[project]
+name = "dns-static-add-bot-mikrotik"
+version = "0.1.0"
+description = "Telegram bot for safe MikroTik DNS Static FWD management"
+requires-python = ">=3.13"
+dependencies = [
+    "aiogram>=3.13,<4",
+    "paramiko>=3.5,<4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=24.10",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py313"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]

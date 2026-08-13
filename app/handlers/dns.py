@@ -12,7 +12,13 @@ from app.filters.content import TextMessageFilter
 from app.keyboards.dns import (
     CANCEL_ADD_DNS_CALLBACK,
     CONFIRM_ADD_DNS_CALLBACK,
+    HELP_MENU_CALLBACK,
+    MAIN_MENU_CALLBACK,
+    START_ADD_DNS_CALLBACK,
     build_confirm_add_dns_keyboard,
+    build_domain_input_keyboard,
+    build_help_menu_keyboard,
+    build_main_menu_keyboard,
 )
 from app.services.exceptions import AppError, ValidationError
 from app.services.mikrotik import MikroTikDnsService
@@ -22,23 +28,94 @@ from app.validators.domain import normalize_and_validate_domain
 logger = logging.getLogger(__name__)
 router = Router(name=__name__)
 
+MAIN_MENU_TEXT = (
+    "🧭 Панель управления MikroTik DNS\n\n"
+    "Здесь можно безопасно добавить DNS Static запись "
+    "типа FWD.\n"
+    "Все изменения выполняются только после "
+    "подтверждения.\n\n"
+    "Выберите действие:"
+)
+HELP_TEXT = (
+    "ℹ️ Что умеет бот\n\n"
+    "• принимает домен и проверяет его формат;\n"
+    "• проверяет, нет ли такой записи на MikroTik;\n"
+    "• добавляет DNS Static FWD запись только после "
+    "подтверждения;\n"
+    "• показывает понятные ошибки без технических "
+    "деталей.\n\n"
+    "Для начала нажмите кнопку ниже."
+)
+ADD_DNS_PROMPT_TEXT = (
+    "➕ Добавление DNS Static FWD\n\n"
+    "Отправьте доменное имя одним сообщением.\n\n"
+    "Пример: example.com"
+)
 
-@router.message(Command("start"))
-async def handle_start(message: Message) -> None:
-    """Introduce available bot commands."""
 
-    await message.answer("Бот готов. Используйте /add для добавления DNS Static FWD записи.")
+async def show_main_menu(message: Message) -> None:
+    """Show main bot menu."""
+
+    await message.answer(MAIN_MENU_TEXT, reply_markup=build_main_menu_keyboard())
 
 
-@router.message(Command("add"))
-async def handle_add_command(message: Message, state: FSMContext) -> None:
+async def start_add_dns_flow(message: Message, state: FSMContext) -> None:
     """Start DNS static record creation scenario."""
 
     user_id = message.from_user.id if message.from_user else None
     logger.info("Started add DNS flow telegram_id=%s", user_id)
     await state.clear()
     await state.set_state(AddDnsRecordStates.waiting_for_domain)
-    await message.answer("Введите доменное имя.")
+    await message.answer(ADD_DNS_PROMPT_TEXT, reply_markup=build_domain_input_keyboard())
+
+
+@router.message(Command("start"))
+async def handle_start(message: Message) -> None:
+    """Introduce available bot commands."""
+
+    await show_main_menu(message)
+
+
+@router.message(Command("add"))
+async def handle_add_command(message: Message, state: FSMContext) -> None:
+    """Start DNS static record creation scenario."""
+
+    await start_add_dns_flow(message, state)
+
+
+@router.callback_query(F.data == MAIN_MENU_CALLBACK)
+async def handle_main_menu_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    """Return user to the main menu."""
+
+    await state.clear()
+    if callback.message is not None:
+        await callback.message.edit_text(MAIN_MENU_TEXT, reply_markup=build_main_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == HELP_MENU_CALLBACK)
+async def handle_help_menu_callback(callback: CallbackQuery) -> None:
+    """Show short user guide."""
+
+    if callback.message is not None:
+        await callback.message.edit_text(HELP_TEXT, reply_markup=build_help_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == START_ADD_DNS_CALLBACK)
+async def handle_add_dns_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    """Start DNS static record creation from inline menu."""
+
+    user_id = callback.from_user.id if callback.from_user else None
+    logger.info("Started add DNS flow telegram_id=%s", user_id)
+    await state.clear()
+    await state.set_state(AddDnsRecordStates.waiting_for_domain)
+    if callback.message is not None:
+        await callback.message.edit_text(
+            ADD_DNS_PROMPT_TEXT,
+            reply_markup=build_domain_input_keyboard(),
+        )
+    await callback.answer()
 
 
 @router.message(AddDnsRecordStates.waiting_for_domain, TextMessageFilter())
@@ -48,13 +125,18 @@ async def handle_domain_input(message: Message, state: FSMContext) -> None:
     try:
         domain = normalize_and_validate_domain(message.text or "")
     except ValidationError as exc:
-        await message.answer(exc.user_message)
+        await message.answer(exc.user_message, reply_markup=build_domain_input_keyboard())
         return
 
     await state.update_data(domain=domain)
     await state.set_state(AddDnsRecordStates.waiting_for_confirmation)
     await message.answer(
-        f"Добавить запись?\n\n{domain}",
+        "Проверьте запись перед добавлением:\n\n"
+        f"Домен: {domain}\n"
+        "Тип: DNS Static FWD\n"
+        "Forward to: CloudFlare\n"
+        "TTL: 1d\n"
+        "Address list: to-VPN",
         reply_markup=build_confirm_add_dns_keyboard(),
     )
 
@@ -64,14 +146,36 @@ async def handle_invalid_domain_message(message: Message) -> None:
     """Handle non-text, empty, or too long messages while waiting for a domain."""
 
     if message.text is None:
-        await message.answer("Отправьте доменное имя текстом.")
+        await message.answer(
+            "Отправьте доменное имя текстом.",
+            reply_markup=build_domain_input_keyboard(),
+        )
         return
 
     if message.text.strip() == "":
-        await message.answer("Введите доменное имя.")
+        await message.answer(
+            "Введите доменное имя.",
+            reply_markup=build_domain_input_keyboard(),
+        )
         return
 
-    await message.answer("Сообщение слишком длинное.")
+    await message.answer(
+        "Сообщение слишком длинное.",
+        reply_markup=build_domain_input_keyboard(),
+    )
+
+
+@router.callback_query(
+    AddDnsRecordStates.waiting_for_domain,
+    F.data == CANCEL_ADD_DNS_CALLBACK,
+)
+async def handle_cancel_domain_input(callback: CallbackQuery, state: FSMContext) -> None:
+    """Cancel DNS creation while waiting for a domain name."""
+
+    await state.clear()
+    if callback.message is not None:
+        await callback.message.edit_text(MAIN_MENU_TEXT, reply_markup=build_main_menu_keyboard())
+    await callback.answer("Операция отменена.")
 
 
 @router.callback_query(
@@ -83,8 +187,8 @@ async def handle_cancel_add_dns(callback: CallbackQuery, state: FSMContext) -> N
 
     await state.clear()
     if callback.message is not None:
-        await callback.message.edit_text("Операция отменена.")
-    await callback.answer()
+        await callback.message.edit_text(MAIN_MENU_TEXT, reply_markup=build_main_menu_keyboard())
+    await callback.answer("Операция отменена.")
 
 
 @router.callback_query(
@@ -105,7 +209,10 @@ async def handle_confirm_add_dns(
         await state.clear()
         await callback.answer("Заявка устарела.", show_alert=True)
         if callback.message is not None:
-            await callback.message.edit_text("Заявка устарела. Используйте /add заново.")
+            await callback.message.edit_text(
+                MAIN_MENU_TEXT,
+                reply_markup=build_main_menu_keyboard(),
+            )
         return
 
     user_id = callback.from_user.id if callback.from_user else None
@@ -117,24 +224,46 @@ async def handle_confirm_add_dns(
         logger.exception("Expected add DNS flow error telegram_id=%s domain=%s", user_id, domain)
         await state.clear()
         if callback.message is not None:
-            await callback.message.edit_text(exc.user_message)
+            await callback.message.edit_text(
+                f"{exc.user_message}\n\nВыберите дальнейшее действие:",
+                reply_markup=build_main_menu_keyboard(),
+            )
         await callback.answer()
         return
     except Exception:
         logger.exception("Unexpected add DNS flow error telegram_id=%s domain=%s", user_id, domain)
         await state.clear()
         if callback.message is not None:
-            await callback.message.edit_text("Произошла ошибка. Попробуйте позже.")
+            await callback.message.edit_text(
+                "Произошла ошибка. Попробуйте позже.\n\n"
+                "Выберите дальнейшее действие:",
+                reply_markup=build_main_menu_keyboard(),
+            )
         await callback.answer()
         return
 
     await state.clear()
     if callback.message is not None:
-        await callback.message.edit_text("Запись успешно добавлена.")
+        await callback.message.edit_text(
+            f"✅ Запись успешно добавлена.\n\n"
+            f"Домен: {domain}\n\n"
+            "Выберите дальнейшее действие:",
+            reply_markup=build_main_menu_keyboard(),
+        )
     await callback.answer()
 
 
-@router.callback_query(F.data.in_({CONFIRM_ADD_DNS_CALLBACK, CANCEL_ADD_DNS_CALLBACK}))
+@router.callback_query(
+    F.data.in_(
+        {
+            CONFIRM_ADD_DNS_CALLBACK,
+            CANCEL_ADD_DNS_CALLBACK,
+            MAIN_MENU_CALLBACK,
+            HELP_MENU_CALLBACK,
+            START_ADD_DNS_CALLBACK,
+        },
+    ),
+)
 async def handle_stale_dns_callback(callback: CallbackQuery) -> None:
     """Handle repeated clicks on old inline buttons."""
 

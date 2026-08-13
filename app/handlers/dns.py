@@ -66,10 +66,7 @@ async def start_add_dns_flow(message: Message, state: FSMContext) -> None:
     logger.info("Started add DNS flow telegram_id=%s", user_id)
     await state.clear()
     await state.set_state(AddDnsRecordStates.waiting_for_domain)
-    await message.answer(
-        ADD_DNS_PROMPT_TEXT,
-        reply_markup=build_domain_input_keyboard(),
-    )
+    await message.answer(ADD_DNS_PROMPT_TEXT, reply_markup=build_domain_input_keyboard())
 
 
 @router.message(Command("start"))
@@ -92,10 +89,7 @@ async def handle_main_menu_callback(callback: CallbackQuery, state: FSMContext) 
 
     await state.clear()
     if callback.message is not None:
-        await callback.message.edit_text(
-            MAIN_MENU_TEXT,
-            reply_markup=build_main_menu_keyboard(),
-        )
+        await callback.message.edit_text(MAIN_MENU_TEXT, reply_markup=build_main_menu_keyboard())
     await callback.answer()
 
 
@@ -104,10 +98,7 @@ async def handle_help_menu_callback(callback: CallbackQuery) -> None:
     """Show short user guide."""
 
     if callback.message is not None:
-        await callback.message.edit_text(
-            HELP_TEXT,
-            reply_markup=build_help_menu_keyboard(),
-        )
+        await callback.message.edit_text(HELP_TEXT, reply_markup=build_help_menu_keyboard())
     await callback.answer()
 
 
@@ -134,10 +125,7 @@ async def handle_domain_input(message: Message, state: FSMContext) -> None:
     try:
         domain = normalize_and_validate_domain(message.text or "")
     except ValidationError as exc:
-        await message.answer(
-            exc.user_message,
-            reply_markup=build_domain_input_keyboard(),
-        )
+        await message.answer(exc.user_message, reply_markup=build_domain_input_keyboard())
         return
 
     await state.update_data(domain=domain)
@@ -181,18 +169,12 @@ async def handle_invalid_domain_message(message: Message) -> None:
     AddDnsRecordStates.waiting_for_domain,
     F.data == CANCEL_ADD_DNS_CALLBACK,
 )
-async def handle_cancel_domain_input(
-    callback: CallbackQuery,
-    state: FSMContext,
-) -> None:
+async def handle_cancel_domain_input(callback: CallbackQuery, state: FSMContext) -> None:
     """Cancel DNS creation while waiting for a domain name."""
 
     await state.clear()
     if callback.message is not None:
-        await callback.message.edit_text(
-            MAIN_MENU_TEXT,
-            reply_markup=build_main_menu_keyboard(),
-        )
+        await callback.message.edit_text(MAIN_MENU_TEXT, reply_markup=build_main_menu_keyboard())
     await callback.answer("Операция отменена.")
 
 
@@ -205,10 +187,7 @@ async def handle_cancel_add_dns(callback: CallbackQuery, state: FSMContext) -> N
 
     await state.clear()
     if callback.message is not None:
-        await callback.message.edit_text(
-            MAIN_MENU_TEXT,
-            reply_markup=build_main_menu_keyboard(),
-        )
+        await callback.message.edit_text(MAIN_MENU_TEXT, reply_markup=build_main_menu_keyboard())
     await callback.answer("Операция отменена.")
 
 

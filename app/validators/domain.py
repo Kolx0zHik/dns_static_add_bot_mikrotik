@@ -10,7 +10,7 @@ MAX_LABEL_LENGTH = 63
 MIN_LABEL_COUNT = 2
 DOMAIN_PATTERN = re.compile(r"^[a-z0-9.-]+$")
 FORBIDDEN_SCHEMES = ("http://", "https://", "ftp://")
-FORBIDDEN_CHARS = frozenset('/\\?#&:%@')
+FORBIDDEN_CHARS = frozenset("/\\?#&:%@")
 
 
 def normalize_and_validate_domain(raw_domain: str) -> str:

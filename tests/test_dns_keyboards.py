@@ -6,6 +6,7 @@ from app.keyboards.dns import (
     HELP_MENU_CALLBACK,
     MAIN_MENU_CALLBACK,
     SELECT_ROUTER_CALLBACK_PREFIX,
+    START_ADD_DNS_CALLBACK,
     START_ADD_DNS_CALLBACK_PREFIX,
     build_confirm_add_dns_keyboard,
     build_domain_input_keyboard,

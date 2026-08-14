@@ -1,21 +1,86 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.models.router import RouterConfig
+
 MAIN_MENU_CALLBACK = "menu:main"
 HELP_MENU_CALLBACK = "menu:help"
 START_ADD_DNS_CALLBACK = "dns:add:start"
+START_ADD_DNS_CALLBACK_PREFIX = "dns:add:start:"
 CONFIRM_ADD_DNS_CALLBACK = "dns:add:confirm"
 CANCEL_ADD_DNS_CALLBACK = "dns:add:cancel"
+SELECT_ROUTER_CALLBACK_PREFIX = "router:select:"
 
 
-def build_main_menu_keyboard() -> InlineKeyboardMarkup:
+def build_select_router_callback(router_id: str) -> str:
+    """Build callback data for router selection."""
+
+    return f"{SELECT_ROUTER_CALLBACK_PREFIX}{router_id}"
+
+
+def build_start_add_dns_callback(router_id: str) -> str:
+    """Build callback data for starting DNS record creation on a router."""
+
+    return f"{START_ADD_DNS_CALLBACK_PREFIX}{router_id}"
+
+
+def parse_start_add_dns_callback(callback_data: str) -> str | None:
+    """Parse router ID from add DNS callback."""
+
+    if callback_data == START_ADD_DNS_CALLBACK:
+        return None
+    if not callback_data.startswith(START_ADD_DNS_CALLBACK_PREFIX):
+        return None
+    router_id = callback_data.removeprefix(START_ADD_DNS_CALLBACK_PREFIX)
+    return router_id or None
+
+
+def parse_select_router_callback(callback_data: str) -> str | None:
+    """Parse router ID from router selection callback."""
+
+    if not callback_data.startswith(SELECT_ROUTER_CALLBACK_PREFIX):
+        return None
+    router_id = callback_data.removeprefix(SELECT_ROUTER_CALLBACK_PREFIX)
+    return router_id or None
+
+
+def build_router_selection_keyboard(routers: tuple[RouterConfig, ...]) -> InlineKeyboardMarkup:
+    """Build keyboard with routers available for a user."""
+
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=f"📍 {router.name}",
+                callback_data=build_select_router_callback(router.id),
+            ),
+        ]
+        for router in routers
+    ]
+    keyboard.append(
+        [
+            InlineKeyboardButton(
+                text="ℹ️ Что умеет бот",
+                callback_data=HELP_MENU_CALLBACK,
+            ),
+        ],
+    )
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def build_main_menu_keyboard(router: RouterConfig) -> InlineKeyboardMarkup:
     """Build main navigation keyboard."""
 
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
+                    text=f"📍 {router.name}",
+                    callback_data=MAIN_MENU_CALLBACK,
+                ),
+            ],
+            [
+                InlineKeyboardButton(
                     text="➕ Добавить DNS FWD",
-                    callback_data=START_ADD_DNS_CALLBACK,
+                    callback_data=build_start_add_dns_callback(router.id),
                 ),
             ],
             [

@@ -5,11 +5,25 @@ from app.keyboards.dns import (
     CONFIRM_ADD_DNS_CALLBACK,
     HELP_MENU_CALLBACK,
     MAIN_MENU_CALLBACK,
-    START_ADD_DNS_CALLBACK,
+    SELECT_ROUTER_CALLBACK_PREFIX,
+    START_ADD_DNS_CALLBACK_PREFIX,
     build_confirm_add_dns_keyboard,
     build_domain_input_keyboard,
     build_help_menu_keyboard,
     build_main_menu_keyboard,
+    build_router_selection_keyboard,
+)
+from app.models.router import RouterConfig
+
+
+ROUTER = RouterConfig(
+    id="office",
+    name="Office",
+    host="192.0.2.1",
+    port=22,
+    user="admin",
+    password="secret",
+    allowed_users=frozenset({11111111}),
 )
 
 
@@ -23,8 +37,16 @@ def _keyboard_callbacks(markup: InlineKeyboardMarkup) -> list[str]:
 
 
 def test_main_menu_keyboard_contains_primary_actions() -> None:
-    assert _keyboard_callbacks(build_main_menu_keyboard()) == [
-        START_ADD_DNS_CALLBACK,
+    assert _keyboard_callbacks(build_main_menu_keyboard(ROUTER)) == [
+        MAIN_MENU_CALLBACK,
+        f"{START_ADD_DNS_CALLBACK_PREFIX}office",
+        HELP_MENU_CALLBACK,
+    ]
+
+
+def test_router_selection_keyboard_contains_allowed_routers() -> None:
+    assert _keyboard_callbacks(build_router_selection_keyboard((ROUTER,))) == [
+        f"{SELECT_ROUTER_CALLBACK_PREFIX}office",
         HELP_MENU_CALLBACK,
     ]
 

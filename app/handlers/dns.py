@@ -28,7 +28,7 @@ from app.models.router import RouterConfig
 from app.services.exceptions import AppError, ValidationError
 from app.services.mikrotik import MikroTikDnsService
 from app.states.dns import AddDnsRecordStates
-from app.validators.domain import normalize_and_validate_domain
+from app.validators.domain import normalize_and_validate_domains
 
 logger = logging.getLogger(__name__)
 router = Router(name=__name__)
@@ -53,7 +53,7 @@ NO_ROUTERS_TEXT = (
 )
 HELP_TEXT = (
     "ℹ️ Что умеет бот\n\n"
-    "• принимает домен и проверяет его формат;\n"
+    "• принимает один или несколько доменов и проверяет их формат;\n"
     "• показывает только доступные вам MikroTik;\n"
     "• проверяет, нет ли такой записи на выбранном "
     "MikroTik;\n"
@@ -66,8 +66,8 @@ HELP_TEXT = (
 ADD_DNS_PROMPT_TEXT = (
     "➕ Добавление DNS Static FWD\n\n"
     "MikroTik: {router_name}\n\n"
-    "Отправьте доменное имя одним сообщением.\n\n"
-    "Пример: example.com"
+    "Отправьте доменные имена одним сообщением, каждый домен с новой строки.\n\n"
+    "Пример:\nexample.com\nsub.example.com"
 )
 
 
@@ -285,22 +285,23 @@ async def handle_add_dns_callback(
 
 @router.message(AddDnsRecordStates.waiting_for_domain, TextMessageFilter())
 async def handle_domain_input(message: Message, state: FSMContext) -> None:
-    """Validate domain and ask for confirmation."""
+    """Validate domains and ask for confirmation."""
 
     try:
-        domain = normalize_and_validate_domain(message.text or "")
+        domains = normalize_and_validate_domains(message.text or "")
     except ValidationError as exc:
         await message.answer(exc.user_message, reply_markup=build_domain_input_keyboard())
         return
 
-    await state.update_data(domain=domain)
+    await state.update_data(domains=domains)
     await state.set_state(AddDnsRecordStates.waiting_for_confirmation)
     data = await state.get_data()
     router_name = data.get("router_name")
+    domain_list = "\n".join(domains)
     await message.answer(
-        "Проверьте запись перед добавлением:\n\n"
+        "Проверьте записи перед добавлением:\n\n"
         f"MikroTik: {router_name}\n"
-        f"Домен: {domain}\n"
+        f"Домены ({len(domains)}):\n{domain_list}\n\n"
         "Тип: DNS Static FWD\n"
         "Forward to: CloudFlare\n"
         "TTL: 1d\n"
@@ -311,18 +312,18 @@ async def handle_domain_input(message: Message, state: FSMContext) -> None:
 
 @router.message(AddDnsRecordStates.waiting_for_domain)
 async def handle_invalid_domain_message(message: Message) -> None:
-    """Handle non-text, empty, or too long messages while waiting for a domain."""
+    """Handle non-text, empty, or too long messages while waiting for domains."""
 
     if message.text is None:
         await message.answer(
-            "Отправьте доменное имя текстом.",
+            "Отправьте доменные имена текстом, каждый домен с новой строки.",
             reply_markup=build_domain_input_keyboard(),
         )
         return
 
     if message.text.strip() == "":
         await message.answer(
-            "Введите доменное имя.",
+            "Введите хотя бы одно доменное имя.",
             reply_markup=build_domain_input_keyboard(),
         )
         return
@@ -399,14 +400,19 @@ async def handle_confirm_add_dns(
     router_catalog: RouterCatalog,
     mikrotik_dns_services: dict[str, MikroTikDnsService],
 ) -> None:
-    """Add DNS static FWD record after user confirmation."""
+    """Add DNS static FWD records after user confirmation."""
 
     data = await state.get_data()
-    domain = data.get("domain")
+    raw_domains = data.get("domains")
     router_id = data.get("router_id")
     selected_router = router_catalog.get(router_id) if isinstance(router_id, str) else None
 
-    if not isinstance(domain, str) or selected_router is None:
+    if (
+        not isinstance(raw_domains, (list, tuple))
+        or not raw_domains
+        or not all(isinstance(domain, str) for domain in raw_domains)
+        or selected_router is None
+    ):
         await state.clear()
         await callback.answer("Заявка устарела.", show_alert=True)
         if callback.message is not None:
@@ -414,6 +420,8 @@ async def handle_confirm_add_dns(
                 "Заявка устарела. Откройте меню заново.",
             )
         return
+
+    domains = tuple(raw_domains)
 
     if _get_user_id(callback) not in selected_router.allowed_users:
         await state.clear()
@@ -432,20 +440,20 @@ async def handle_confirm_add_dns(
 
     user_id = _get_user_id(callback)
     logger.info(
-        "Confirmed add DNS flow telegram_id=%s router_id=%s domain=%s",
+        "Confirmed add DNS flow telegram_id=%s router_id=%s domains=%s",
         user_id,
         selected_router.id,
-        domain,
+        domains,
     )
 
     try:
-        await asyncio.to_thread(mikrotik_dns_service.add_fwd_record, domain)
+        result = await asyncio.to_thread(mikrotik_dns_service.add_fwd_records, domains)
     except AppError as exc:
         logger.exception(
-            "Expected add DNS flow error telegram_id=%s router_id=%s domain=%s",
+            "Expected add DNS flow error telegram_id=%s router_id=%s domains=%s",
             user_id,
             selected_router.id,
-            domain,
+            domains,
         )
         await state.clear()
         if callback.message is not None:
@@ -457,10 +465,10 @@ async def handle_confirm_add_dns(
         return
     except Exception:
         logger.exception(
-            "Unexpected add DNS flow error telegram_id=%s router_id=%s domain=%s",
+            "Unexpected add DNS flow error telegram_id=%s router_id=%s domains=%s",
             user_id,
             selected_router.id,
-            domain,
+            domains,
         )
         await state.clear()
         if callback.message is not None:
@@ -474,11 +482,20 @@ async def handle_confirm_add_dns(
 
     await state.clear()
     if callback.message is not None:
+        result_lines = [
+            "✅ Обработка списка завершена.",
+            "",
+            f"MikroTik: {selected_router.name}",
+            f"Добавлено: {len(result.added)}",
+            f"Уже существовало: {len(result.already_existed)}",
+        ]
+        if result.added:
+            result_lines.extend(("", "Добавленные домены:", *result.added))
+        if result.already_existed:
+            result_lines.extend(("", "Пропущенные домены:", *result.already_existed))
+        result_lines.extend(("", "Выберите дальнейшее действие:"))
         await callback.message.edit_text(
-            f"✅ Запись успешно добавлена.\n\n"
-            f"MikroTik: {selected_router.name}\n"
-            f"Домен: {domain}\n\n"
-            "Выберите дальнейшее действие:",
+            "\n".join(result_lines),
             reply_markup=build_main_menu_keyboard(selected_router),
         )
     await callback.answer()

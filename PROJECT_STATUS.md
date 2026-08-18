@@ -32,6 +32,9 @@
   `AGENTS.md`.
 - Добавлены unit-тесты загрузки multi-router и legacy-конфигураций, клавиатур выбора
   роутера, валидации доменов и генерации RouterOS-команд.
+- Сценарий `/add` принимает один или несколько доменов в одном сообщении, каждый с
+  новой строки. Весь список валидируется и подтверждается целиком; существующие записи
+  пропускаются, а итог разделяет добавленные и уже существовавшие домены.
 
 ## Ключевые решения
 
@@ -60,12 +63,19 @@
   доступа и маршрутизация операции к нужному сервису.
 - `app/keyboards/dns.py` - клавиатуры выбора роутера и router-aware callback data.
 - `app/services/ssh.py` и `app/services/mikrotik.py` - работа с конкретным роутером и
-  диагностический `router_id` в логах.
+  диагностический `router_id` в логах, включая пакетное добавление DNS-записей.
 - `tests/test_config.py` и `tests/test_dns_keyboards.py` - тесты нового поведения.
 - `.env.example`, `README.md`, `requirements.md`, `AGENTS.md` - схема конфигурации и
   требования к multi-router доступу.
-- `.github/workflows/docker-image.yml` - Ruff удалён из CI; сейчас quality job запускает
-  только pytest.
+- `app/validators/domain.py`, `tests/test_domain_validator.py` и
+  `tests/test_mikrotik_service.py` - разбор, проверка и обработка построчного списка
+  доменов.
+- `.github/workflows/docker-image.yml` - quality job запускает Black, Ruff и pytest перед
+  сборкой Docker-образа.
+- `docker-compose.yml` - production-compose использует корневой `.env`, как описано в
+  README.
+- `tests/test_config.py` - тесты RouterCatalog, дубликатов и невалидных ACL, портов и
+  SSH timeout.
 
 ## Проверка
 
@@ -76,29 +86,28 @@
   Python 3.13.5.
 - Локальные `pytest`, `ruff check .`, `black --check .`, проверка Compose и Docker build
   не выполнены: в текущем окружении отсутствуют pytest/Ruff/Black, pip и Docker.
+- Локально `python3 -m compileall -q app tests` и `git diff --check` завершились успешно
+  после текущих изменений.
 - Интеграционный тест с Telegram API и реальным MikroTik не выполнялся.
 
 ## Известные проблемы и риски
 
-- CI не соответствует `requirements.md` и README: шаги Ruff и Black отсутствуют.
-  Последний успешный pipeline подтверждает тесты и Docker build, но не стиль и
-  форматирование.
+- Восстановленные шаги Black и Ruff ещё не подтверждены GitHub Actions для текущего
+  незакоммиченного состояния.
 - Multi-router handlers и повторные ACL-проверки не покрыты отдельными тестами на
   aiogram updates/FSM; существующие тесты проверяют конфигурацию и клавиатуры, но не
   весь пользовательский сценарий.
-- Не добавлены unit-тесты `RouterCatalog`, ошибок/краевых случаев конфигурации
-  (дубликаты и неверные ID, пустые ACL, неверные port/timeout), выбора правильного
-  сервиса и запрета доступа к чужому `router_id`.
+- Не добавлены handler/FSM-тесты выбора правильного сервиса и запрета доступа к чужому
+  `router_id`; конфигурационные тесты `RouterCatalog`, дубликатов и невалидных ACL,
+  портов и timeout теперь добавлены.
 - `MemoryStorage` теряет незавершённые FSM-сценарии при перезапуске процесса. Это
   приемлемо для текущего этапа, но важно при эксплуатации и горизонтальном
   масштабировании.
 - `SshClient` использует `paramiko.AutoAddPolicy`, поэтому host key принимается
   автоматически. Перед production-эксплуатацией следует определить и реализовать
   политику проверки ключей хоста.
-- `docker-compose.yml` ожидает env-файл по пути
-  `./dns_static_add_bot_mikrotik/.env`, тогда как README предлагает создать `.env` в
-  корне текущего репозитория. Dev-compose использует корневой `.env`; production
-  compose нужно проверить в целевой структуре развёртывания и согласовать с README.
+- Проверка `docker compose config` и локальная сборка образа не выполнены из-за
+  отсутствия Docker CLI.
 
 ## Опробованные, но не сработавшие подходы
 
@@ -113,18 +122,15 @@
 
 ## Следующие шаги
 
-1. Воспроизвести локально `pip install -e ".[dev]"`, `ruff check .`,
-   `black --check .` и `pytest`; исправить реальные lint/format ошибки вместо обхода.
-2. Вернуть Ruff и Black в `.github/workflows/docker-image.yml`, добиться зелёного CI и
-   синхронизировать описание CI в README с фактическим workflow.
-3. Добавить тесты `RouterCatalog`, невалидных multi-router env-параметров и
-   router-aware callbacks.
-4. Добавить handler/FSM-тесты для одного и нескольких доступных роутеров, подмены
+1. Запустить в окружении с pip `pip install -e ".[dev]"`, затем `ruff check .`,
+   `black --check .` и `pytest`.
+2. Запустить GitHub Actions для текущих изменений и подтвердить зелёные Black, Ruff,
+   pytest и Docker build.
+3. Добавить router-aware callback-тесты и handler/FSM-тесты для одного и нескольких
+   доступных роутеров, подмены
    `router_id`, повторного callback, отмены и выбора нужного DNS-сервиса.
-5. Согласовать путь `.env` в production Compose с документированным способом запуска и
-   проверить `docker compose config` плюс локальную сборку образа.
-6. Провести smoke-тест в тестовом Telegram-боте и на тестовом MikroTik: выбор каждого
+4. Провести smoke-тест в тестовом Telegram-боте и на тестовом MikroTik: выбор каждого
    разрешённого роутера, отказ в чужом доступе, существующая запись, успешное
    добавление и типовые SSH-ошибки.
-7. До production-развёртывания заменить автоматическое принятие SSH host key на
+5. До production-развёртывания заменить автоматическое принятие SSH host key на
    явно выбранную политику доверия и задокументировать её конфигурацию.

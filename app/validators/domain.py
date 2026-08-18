@@ -58,3 +58,26 @@ def normalize_and_validate_domain(raw_domain: str) -> str:
         return domain
 
     raise ValidationError("IP-адрес нельзя использовать вместо доменного имени.")
+
+
+def normalize_and_validate_domains(raw_domains: str) -> tuple[str, ...]:
+    """Normalize and validate DNS names supplied one per line."""
+
+    domains: list[str] = []
+    seen_domains: set[str] = set()
+    for line_number, raw_domain in enumerate(raw_domains.splitlines(), start=1):
+        if raw_domain.strip() == "":
+            continue
+        try:
+            domain = normalize_and_validate_domain(raw_domain)
+        except ValidationError as exc:
+            raise ValidationError(f"Строка {line_number}: {exc.user_message}") from exc
+        if domain in seen_domains:
+            raise ValidationError(f"Строка {line_number}: домен {domain} указан повторно.")
+        seen_domains.add(domain)
+        domains.append(domain)
+
+    if not domains:
+        raise ValidationError("Введите хотя бы одно доменное имя.")
+
+    return tuple(domains)

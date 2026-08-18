@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 
-from app.models.dns import DnsStaticRecord
+from app.models.dns import AddDnsRecordsResult, DnsStaticRecord
 from app.services.exceptions import RecordAlreadyExistsError, SshCommandError
 from app.services.routeros_commands import (
     build_add_dns_static_record_command,
@@ -65,4 +65,22 @@ class MikroTikDnsService:
             self._router_id,
             domain,
             time.monotonic() - started_at,
+        )
+
+    def add_fwd_records(self, domains: tuple[str, ...]) -> AddDnsRecordsResult:
+        """Add multiple DNS static FWD records and skip existing records."""
+
+        added: list[str] = []
+        already_existed: list[str] = []
+        for domain in domains:
+            try:
+                self.add_fwd_record(domain)
+            except RecordAlreadyExistsError:
+                already_existed.append(domain)
+            else:
+                added.append(domain)
+
+        return AddDnsRecordsResult(
+            added=tuple(added),
+            already_existed=tuple(already_existed),
         )

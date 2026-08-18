@@ -2,5 +2,5 @@ services:
   dns_static_add_bot_mikrotik:
     image: ghcr.io/kolx0zhik/dns_static_add_bot_mikrotik:latest
     env_file:
-      - ./dns_static_add_bot_mikrotik/.env
+      - .env
     restart: unless-stopped

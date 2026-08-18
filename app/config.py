@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from math import isfinite
 from re import fullmatch
 
 from app.models.router import RouterConfig
@@ -75,6 +76,28 @@ def _parse_global_allowed_users() -> frozenset[int]:
     return _parse_allowed_users(raw_value, "ALLOWED_USERS")
 
 
+def _parse_port(env_name: str, default: str = "22") -> int:
+    raw_value = os.getenv(env_name, default).strip()
+    try:
+        port = int(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"{env_name} must be an integer") from exc
+    if not 1 <= port <= 65535:
+        raise ValueError(f"{env_name} must be between 1 and 65535")
+    return port
+
+
+def _parse_timeout() -> float:
+    raw_value = os.getenv("SSH_TIMEOUT", "10").strip()
+    try:
+        timeout = float(raw_value)
+    except ValueError as exc:
+        raise ValueError("SSH_TIMEOUT must be a number") from exc
+    if not isfinite(timeout) or timeout <= 0:
+        raise ValueError("SSH_TIMEOUT must be a finite number greater than zero")
+    return timeout
+
+
 def _validate_router_id(router_id: str) -> str:
     normalized_id = router_id.strip().lower()
     if fullmatch(r"[a-z0-9_]+", normalized_id) is None:
@@ -103,11 +126,11 @@ def _load_router(router_id: str, default_allowed_users: frozenset[int]) -> Route
         id=router_id,
         name=_get_optional_env(f"{prefix}_NAME") or router_id,
         host=_get_required_env(f"{prefix}_HOST"),
-        port=int(os.getenv(f"{prefix}_PORT", "22")),
+        port=_parse_port(f"{prefix}_PORT"),
         user=_get_required_env(f"{prefix}_USER"),
         password=_get_required_env(f"{prefix}_PASSWORD"),
         allowed_users=allowed_users,
-        ssh_timeout=float(os.getenv("SSH_TIMEOUT", "10")),
+        ssh_timeout=_parse_timeout(),
     )
 
 
@@ -121,11 +144,11 @@ def _load_routers(default_allowed_users: frozenset[int]) -> tuple[RouterConfig, 
                 id="default",
                 name=_get_optional_env("MIKROTIK_NAME") or "MikroTik",
                 host=_get_required_env("MIKROTIK_HOST"),
-                port=int(os.getenv("MIKROTIK_PORT", "22")),
+                port=_parse_port("MIKROTIK_PORT"),
                 user=_get_required_env("MIKROTIK_USER"),
                 password=_get_required_env("MIKROTIK_PASSWORD"),
                 allowed_users=default_allowed_users,
-                ssh_timeout=float(os.getenv("SSH_TIMEOUT", "10")),
+                ssh_timeout=_parse_timeout(),
             ),
         )
 

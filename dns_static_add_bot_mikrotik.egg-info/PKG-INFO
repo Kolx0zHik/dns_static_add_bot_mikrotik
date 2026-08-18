@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: dns-static-add-bot-mikrotik
+Version: 0.1.0
+Summary: Telegram bot for safe MikroTik DNS Static FWD management
+Requires-Python: >=3.13
+Requires-Dist: aiogram<4,>=3.13
+Requires-Dist: paramiko<4,>=3.5
+Provides-Extra: dev
+Requires-Dist: black==26.5.1; extra == "dev"
+Requires-Dist: pytest>=8.3; extra == "dev"
+Requires-Dist: ruff>=0.8; extra == "dev"

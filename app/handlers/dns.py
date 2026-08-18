@@ -21,6 +21,7 @@ from app.keyboards.dns import (
     build_help_menu_keyboard,
     build_main_menu_keyboard,
     build_router_selection_keyboard,
+    parse_router_info_callback,
     parse_select_router_callback,
     parse_start_add_dns_callback,
 )
@@ -249,6 +250,28 @@ async def handle_select_router_callback(
             reply_markup=build_main_menu_keyboard(selected_router),
         )
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("router:info:"))
+async def handle_router_info_callback(
+    callback: CallbackQuery,
+    router_catalog: RouterCatalog,
+) -> None:
+    """Show information about the currently selected router."""
+
+    router_id = parse_router_info_callback(callback.data or "")
+    selected_router = router_catalog.get(router_id or "")
+    user_id = _get_user_id(callback)
+
+    if selected_router is None or user_id not in selected_router.allowed_users:
+        await callback.answer("MikroTik недоступен.", show_alert=True)
+        return
+
+    await callback.answer(
+        f"Текущий роутер: {selected_router.name}\n"
+        f"Host: {selected_router.host}:{selected_router.port}",
+        show_alert=True,
+    )
 
 
 @router.callback_query(

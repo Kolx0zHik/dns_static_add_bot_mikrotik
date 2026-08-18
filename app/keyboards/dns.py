@@ -9,12 +9,19 @@ START_ADD_DNS_CALLBACK_PREFIX = "dns:add:start:"
 CONFIRM_ADD_DNS_CALLBACK = "dns:add:confirm"
 CANCEL_ADD_DNS_CALLBACK = "dns:add:cancel"
 SELECT_ROUTER_CALLBACK_PREFIX = "router:select:"
+ROUTER_INFO_CALLBACK_PREFIX = "router:info:"
 
 
 def build_select_router_callback(router_id: str) -> str:
     """Build callback data for router selection."""
 
     return f"{SELECT_ROUTER_CALLBACK_PREFIX}{router_id}"
+
+
+def build_router_info_callback(router_id: str) -> str:
+    """Build callback data for router info."""
+
+    return f"{ROUTER_INFO_CALLBACK_PREFIX}{router_id}"
 
 
 def build_start_add_dns_callback(router_id: str) -> str:
@@ -40,6 +47,15 @@ def parse_select_router_callback(callback_data: str) -> str | None:
     if not callback_data.startswith(SELECT_ROUTER_CALLBACK_PREFIX):
         return None
     router_id = callback_data.removeprefix(SELECT_ROUTER_CALLBACK_PREFIX)
+    return router_id or None
+
+
+def parse_router_info_callback(callback_data: str) -> str | None:
+    """Parse router ID from router info callback."""
+
+    if not callback_data.startswith(ROUTER_INFO_CALLBACK_PREFIX):
+        return None
+    router_id = callback_data.removeprefix(ROUTER_INFO_CALLBACK_PREFIX)
     return router_id or None
 
 
@@ -74,7 +90,7 @@ def build_main_menu_keyboard(router: RouterConfig) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text=f"📍 {router.name}",
-                    callback_data=MAIN_MENU_CALLBACK,
+                    callback_data=build_router_info_callback(router.id),
                 ),
             ],
             [

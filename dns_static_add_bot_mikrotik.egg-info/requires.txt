@@ -1,0 +1,7 @@
+aiogram<4,>=3.13
+paramiko<4,>=3.5
+
+[dev]
+black==26.5.1
+pytest>=8.3
+ruff>=0.8

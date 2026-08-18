@@ -21,8 +21,8 @@ from app.keyboards.dns import (
     build_help_menu_keyboard,
     build_main_menu_keyboard,
     build_router_selection_keyboard,
-    parse_start_add_dns_callback,
     parse_select_router_callback,
+    parse_start_add_dns_callback,
 )
 from app.models.router import RouterConfig
 from app.services.exceptions import AppError, ValidationError

@@ -33,11 +33,7 @@ class RouterCatalog:
 
         if user_id is None:
             return ()
-        return tuple(
-            router
-            for router in self._routers.values()
-            if user_id in router.allowed_users
-        )
+        return tuple(router for router in self._routers.values() if user_id in router.allowed_users)
 
 
 def _get_required_env(name: str) -> str:
@@ -106,8 +102,7 @@ def _validate_router_id(router_id: str) -> str:
     normalized_id = router_id.strip().lower()
     if fullmatch(r"[a-z0-9_]+", normalized_id) is None:
         raise ValueError(
-            "MIKROTIK_ROUTERS must contain IDs with only latin letters, digits, "
-            "and underscores",
+            "MIKROTIK_ROUTERS must contain IDs with only latin letters, digits, " "and underscores",
         )
     return normalized_id
 
@@ -169,9 +164,7 @@ def _load_routers(default_allowed_users: frozenset[int]) -> tuple[RouterConfig, 
     if len(set(router_ids)) != len(router_ids):
         raise ValueError("MIKROTIK_ROUTERS must not contain duplicate router IDs")
 
-    return tuple(
-        _load_router(router_id, default_allowed_users) for router_id in router_ids
-    )
+    return tuple(_load_router(router_id, default_allowed_users) for router_id in router_ids)
 
 
 def load_settings() -> Settings:

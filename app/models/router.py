@@ -15,4 +15,3 @@ class RouterConfig:
     password: str
     allowed_users: frozenset[int]
     ssh_timeout: float = 10.0
-

@@ -43,8 +43,7 @@ MAIN_MENU_TEXT = (
     "Выберите действие:"
 )
 ROUTER_SELECTION_TEXT = (
-    "🧭 Панель управления MikroTik DNS\n\n"
-    "Выберите MikroTik, с которым нужно работать:"
+    "🧭 Панель управления MikroTik DNS\n\n" "Выберите MikroTik, с которым нужно работать:"
 )
 NO_ROUTERS_TEXT = (
     "Для вашего Telegram ID не настроен доступ ни к одному "
@@ -92,9 +91,7 @@ def _router_from_state(
     user_id: int | None,
 ) -> RouterConfig | None:
     router_id = data.get("router_id")
-    selected_router = (
-        router_catalog.get(router_id) if isinstance(router_id, str) else None
-    )
+    selected_router = router_catalog.get(router_id) if isinstance(router_id, str) else None
     if selected_router is None or user_id not in selected_router.allowed_users:
         return None
     return selected_router
@@ -234,8 +231,7 @@ async def handle_select_router_callback(
     router_id = parse_select_router_callback(callback.data or "")
     selected_router = router_catalog.get(router_id or "")
     accessible_router_ids = {
-        router.id
-        for router in router_catalog.accessible_for_user(_get_user_id(callback))
+        router.id for router in router_catalog.accessible_for_user(_get_user_id(callback))
     }
 
     if selected_router is None or selected_router.id not in accessible_router_ids:
@@ -271,10 +267,7 @@ async def handle_add_dns_callback(
         if router_id is not None
         else _single_accessible_router(router_catalog, _get_user_id(callback))
     )
-    if (
-        selected_router is not None
-        and _get_user_id(callback) not in selected_router.allowed_users
-    ):
+    if selected_router is not None and _get_user_id(callback) not in selected_router.allowed_users:
         selected_router = None
     if selected_router is None:
         await _show_router_selection_for_callback(callback, router_catalog, state)
@@ -424,9 +417,7 @@ async def handle_confirm_add_dns(
     data = await state.get_data()
     raw_domains = data.get("domains")
     router_id = data.get("router_id")
-    selected_router = (
-        router_catalog.get(router_id) if isinstance(router_id, str) else None
-    )
+    selected_router = router_catalog.get(router_id) if isinstance(router_id, str) else None
 
     if (
         not isinstance(raw_domains, (list, tuple))
@@ -494,8 +485,7 @@ async def handle_confirm_add_dns(
         await state.clear()
         if callback.message is not None:
             await callback.message.edit_text(
-                "Произошла ошибка. Попробуйте позже.\n\n"
-                "Выберите дальнейшее действие:",
+                "Произошла ошибка. Попробуйте позже.\n\n" "Выберите дальнейшее действие:",
                 reply_markup=build_main_menu_keyboard(selected_router),
             )
         await callback.answer()

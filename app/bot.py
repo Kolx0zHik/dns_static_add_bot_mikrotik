@@ -38,8 +38,7 @@ async def main() -> None:
     router_catalog = RouterCatalog(settings.routers)
     dispatcher["router_catalog"] = router_catalog
     dispatcher["mikrotik_dns_services"] = {
-        router.id: MikroTikDnsService(router.id, SshClient(router))
-        for router in settings.routers
+        router.id: MikroTikDnsService(router.id, SshClient(router)) for router in settings.routers
     }
 
     logging.getLogger(__name__).info(

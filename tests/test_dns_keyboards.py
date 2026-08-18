@@ -16,7 +16,6 @@ from app.keyboards.dns import (
 )
 from app.models.router import RouterConfig
 
-
 ROUTER = RouterConfig(
     id="office",
     name="Office",

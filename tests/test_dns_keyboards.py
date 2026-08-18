@@ -60,7 +60,9 @@ def test_help_menu_keyboard_allows_start_and_return() -> None:
 
 
 def test_domain_input_keyboard_allows_cancel() -> None:
-    assert _keyboard_callbacks(build_domain_input_keyboard()) == [CANCEL_ADD_DNS_CALLBACK]
+    assert _keyboard_callbacks(build_domain_input_keyboard()) == [
+        CANCEL_ADD_DNS_CALLBACK,
+    ]
 
 
 def test_confirm_keyboard_allows_decision_and_menu_return() -> None:

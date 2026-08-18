@@ -42,7 +42,10 @@ async def main() -> None:
         for router in settings.routers
     }
 
-    logging.getLogger(__name__).info("Starting Telegram bot routers=%s", len(settings.routers))
+    logging.getLogger(__name__).info(
+        "Starting Telegram bot routers=%s",
+        len(settings.routers),
+    )
     await dispatcher.start_polling(bot)
 
 

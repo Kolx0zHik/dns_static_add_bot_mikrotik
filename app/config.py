@@ -34,7 +34,9 @@ class RouterCatalog:
         if user_id is None:
             return ()
         return tuple(
-            router for router in self._routers.values() if user_id in router.allowed_users
+            router
+            for router in self._routers.values()
+            if user_id in router.allowed_users
         )
 
 
@@ -61,7 +63,9 @@ def _parse_allowed_users(raw_value: str, env_name: str) -> frozenset[int]:
         try:
             users.add(int(user_id))
         except ValueError as exc:
-            raise ValueError(f"{env_name} must contain comma-separated integers") from exc
+            raise ValueError(
+                f"{env_name} must contain comma-separated integers",
+            ) from exc
 
     if not users:
         raise ValueError(f"{env_name} must contain at least one Telegram user ID")
@@ -102,7 +106,8 @@ def _validate_router_id(router_id: str) -> str:
     normalized_id = router_id.strip().lower()
     if fullmatch(r"[a-z0-9_]+", normalized_id) is None:
         raise ValueError(
-            "MIKROTIK_ROUTERS must contain IDs with only latin letters, digits, and underscores",
+            "MIKROTIK_ROUTERS must contain IDs with only latin letters, digits, "
+            "and underscores",
         )
     return normalized_id
 
@@ -138,7 +143,9 @@ def _load_routers(default_allowed_users: frozenset[int]) -> tuple[RouterConfig, 
     raw_router_ids = _get_optional_env("MIKROTIK_ROUTERS")
     if raw_router_ids is None:
         if not default_allowed_users:
-            raise ValueError("ALLOWED_USERS is required for single-router configuration")
+            raise ValueError(
+                "ALLOWED_USERS is required for single-router configuration",
+            )
         return (
             RouterConfig(
                 id="default",
@@ -162,7 +169,9 @@ def _load_routers(default_allowed_users: frozenset[int]) -> tuple[RouterConfig, 
     if len(set(router_ids)) != len(router_ids):
         raise ValueError("MIKROTIK_ROUTERS must not contain duplicate router IDs")
 
-    return tuple(_load_router(router_id, default_allowed_users) for router_id in router_ids)
+    return tuple(
+        _load_router(router_id, default_allowed_users) for router_id in router_ids
+    )
 
 
 def load_settings() -> Settings:

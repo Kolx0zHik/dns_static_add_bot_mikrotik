@@ -92,7 +92,9 @@ def _router_from_state(
     user_id: int | None,
 ) -> RouterConfig | None:
     router_id = data.get("router_id")
-    selected_router = router_catalog.get(router_id) if isinstance(router_id, str) else None
+    selected_router = (
+        router_catalog.get(router_id) if isinstance(router_id, str) else None
+    )
     if selected_router is None or user_id not in selected_router.allowed_users:
         return None
     return selected_router
@@ -156,7 +158,11 @@ async def show_main_menu(message: Message, router: RouterConfig) -> None:
     )
 
 
-async def start_add_dns_flow(message: Message, state: FSMContext, router: RouterConfig) -> None:
+async def start_add_dns_flow(
+    message: Message,
+    state: FSMContext,
+    router: RouterConfig,
+) -> None:
     """Start DNS static record creation scenario."""
 
     user_id = _get_user_id(message)
@@ -209,7 +215,10 @@ async def handle_help_menu_callback(callback: CallbackQuery) -> None:
     """Show short user guide."""
 
     if callback.message is not None:
-        await callback.message.edit_text(HELP_TEXT, reply_markup=build_help_menu_keyboard())
+        await callback.message.edit_text(
+            HELP_TEXT,
+            reply_markup=build_help_menu_keyboard(),
+        )
     await callback.answer()
 
 
@@ -225,7 +234,8 @@ async def handle_select_router_callback(
     router_id = parse_select_router_callback(callback.data or "")
     selected_router = router_catalog.get(router_id or "")
     accessible_router_ids = {
-        router.id for router in router_catalog.accessible_for_user(_get_user_id(callback))
+        router.id
+        for router in router_catalog.accessible_for_user(_get_user_id(callback))
     }
 
     if selected_router is None or selected_router.id not in accessible_router_ids:
@@ -261,7 +271,10 @@ async def handle_add_dns_callback(
         if router_id is not None
         else _single_accessible_router(router_catalog, _get_user_id(callback))
     )
-    if selected_router is not None and _get_user_id(callback) not in selected_router.allowed_users:
+    if (
+        selected_router is not None
+        and _get_user_id(callback) not in selected_router.allowed_users
+    ):
         selected_router = None
     if selected_router is None:
         await _show_router_selection_for_callback(callback, router_catalog, state)
@@ -273,7 +286,10 @@ async def handle_add_dns_callback(
         selected_router.id,
     )
     await state.clear()
-    await state.update_data(router_id=selected_router.id, router_name=selected_router.name)
+    await state.update_data(
+        router_id=selected_router.id,
+        router_name=selected_router.name,
+    )
     await state.set_state(AddDnsRecordStates.waiting_for_domain)
     if callback.message is not None:
         await callback.message.edit_text(
@@ -290,7 +306,10 @@ async def handle_domain_input(message: Message, state: FSMContext) -> None:
     try:
         domains = normalize_and_validate_domains(message.text or "")
     except ValidationError as exc:
-        await message.answer(exc.user_message, reply_markup=build_domain_input_keyboard())
+        await message.answer(
+            exc.user_message,
+            reply_markup=build_domain_input_keyboard(),
+        )
         return
 
     await state.update_data(domains=domains)
@@ -405,7 +424,9 @@ async def handle_confirm_add_dns(
     data = await state.get_data()
     raw_domains = data.get("domains")
     router_id = data.get("router_id")
-    selected_router = router_catalog.get(router_id) if isinstance(router_id, str) else None
+    selected_router = (
+        router_catalog.get(router_id) if isinstance(router_id, str) else None
+    )
 
     if (
         not isinstance(raw_domains, (list, tuple))
